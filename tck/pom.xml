@@ -418,6 +418,12 @@
                 <glassfish.version>8.0.0-SNAPSHOT</glassfish.version>
                 <glassfish.root>${maven.multiModuleProjectDirectory}/target</glassfish.root>
                 
+                <authentication.api.update>false</authentication.api.update>
+                <jakarta.authentication.version>3.1.0</jakarta.authentication.version>
+                
+                <epicyro.update>false</epicyro.update>
+                <epicyro.version>3.1.0</epicyro.version>
+                
                 <!--
                     Exact artefact used by GlassFish that holds the API classes. The actual API
                     jar in the GlassFish root folder is installed to these coordinates below.
@@ -457,6 +463,31 @@
             <build>
                 <plugins>
                     <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>build-helper-maven-plugin</artifactId>
+                        <version>1.12</version>
+                        <executions>
+                            <execution>
+                                <id>negate-prop</id>
+                                <phase>initialize</phase>
+                                <goals>
+                                    <goal>bsh-property</goal>
+                                </goals>
+                                <configuration>
+                                    <source>
+                                        epicyro.noupdate = !${epicyro.update};
+                                        authentication.api.noupdate = !${authentication.api.update};
+                                    </source>
+                                    <properties>
+                                        <property>epicyro.noupdate</property>
+                                        <property>authentication.api.noupdate</property>
+                                    </properties>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    
+                    <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-dependency-plugin</artifactId>
                         <executions>
@@ -481,9 +512,55 @@
                                     </artifactItems>
                                 </configuration>
                             </execution>
+
+                            <!-- Optionally update Authentication API jar in GlassFish -->
+                            <execution>
+                                <id>update-authentication-api</id>
+                                <phase>process-test-classes</phase>
+                                <goals>
+                                    <goal>copy</goal>
+                                </goals>
+                                <configuration>
+                                    <skip>${authentication.api.noupdate}</skip>
+                                    <artifactItems>
+                                        <artifactItem>
+                                            <groupId>jakarta.authentication</groupId>
+                                            <artifactId>jakarta.authentication-api</artifactId>
+                                            <version>${jakarta.authentication.version}</version>
+                                            <type>jar</type>
+                                            <overWrite>true</overWrite>
+                                            <outputDirectory>${glassfish.root}/glassfish8/glassfish/modules</outputDirectory>
+                                            <destFileName>jakarta.authentication-api.jar</destFileName>
+                                        </artifactItem>
+                                    </artifactItems>
+                                </configuration>
+                            </execution>
+
+                            <!-- Optionally update Authentication IMPL (epicyro) jar in GlassFish -->
+                            <execution>
+                                <id>update-authentication-impl</id>
+                                <phase>process-test-classes</phase>
+                                <goals>
+                                    <goal>copy</goal>
+                                </goals>
+                                <configuration>
+                                    <skip>${epicyro.noupdate}</skip>
+                                    <artifactItems>
+                                        <artifactItem>
+                                            <groupId>org.glassfish.epicyro</groupId>
+                                            <artifactId>epicyro</artifactId>
+                                            <version>${epicyro.version}</version>
+                                            <type>jar</type>
+                                            <overWrite>true</overWrite>
+                                            <outputDirectory>${glassfish.root}/glassfish8/glassfish/modules</outputDirectory>
+                                            <destFileName>epicyro.jar</destFileName>
+                                        </artifactItem>
+                                    </artifactItems>
+                                </configuration>
+                            </execution>
                         </executions>
                     </plugin>
-                    
+
                     <!--
                         Installs the jakarta.authentication-api.jar from GF on the filesystem to the
                         coordinates expected by the signature test. 
